@@ -25,7 +25,7 @@
 -- 가입일
 -- 1. 테이블 객체 생성 : DDL(Database Definition Language, 데이터베이스 정의언어)
 CREATE TABLE userTBL (
-    id NUMBER,
+    id NUMBER, -- 회원 아이디 : 1,2,3,...
     name VARCHAR2(20),
     age NUMBER,
     phone CHAR(13),
@@ -33,6 +33,26 @@ CREATE TABLE userTBL (
     email VARCHAR2(30),
     reg_date DATE
 );
+
+CREATE TABLE itemTBL (
+    id NUMBER(4), -- 상품 아이디 : 0001, 0002,..
+    buyer NUMBER, -- 구매자 아이디 : 1-홍길동, 2-김길동,...
+    title VARCHAR2(100), -- 상품명 : 100바이트
+    qty NUMBER, -- 상품 갯수
+    price VARCHAR2(50), -- 상품 가격
+    sell_date DATE-- 판매일
+);
+
+-- NUMBER : 숫자 타입/소숫점
+-- CHAR : 고정 문자 (ex.주민번호)
+-- VARCHAR2 : 가변 문자 vs VARCHAR : 오라클에서 다시 어떤 목적으로 재사용하기위해 가급적 사용하지 않도록!!
+-- NCHAR, NVARCHAR : National (다국어, 영어가 아닌 한국어/일본어/중국어/아랍어,..각 나라별 언어 설정)
+-- DATE : (시간)날짜   vs  TIMEZONE, TIMESTAMP : 밀리세컨드까지 저장 (ex.출입기록)
+------------------------------------------------------------------------------------
+-- LOB(Large Object), CLOB, BLOB : 이미지, 영상등의 용량이 큰 바이너리 파일들을 관리하는 타입
+-- BFILE : 테라바이트 까지..
+
+-- ※ DBA, Modeler가 주로 결정하고 진행 , Developer는 그렇게 만들어진 데이터베이스에 데이터입출력,조작을 담당
 
 -- 2. 테이블에 데이터 삽입 : DML (Database Manipulation Language, 데이터베이스 조작언어)
 -- 2.1 새로운 데이터를 삽입/저장 : INSERT
@@ -54,16 +74,45 @@ VALUES (6, '차길동', 30, '010-1234-5678', 'gwangju, seo-gu', 'hong6@naver.com', 
 INSERT INTO userTBL (id, name, age, phone, addr, email, reg_date)
 VALUES (7, '고길동', 40, '010-1234-5679', 'gwangju, seo-gu', 'hong7@naver.com', SYSDATE);
 
+-- 아이템 데이터 등록
+-- 순서와 데이터의 갯수를 테이블 정의 그대로 지켜서 입력!
+SELECT SYSDATE
+FROM dual;  -- 오늘 날짜 정보를 조회 : 22/11/15
+
+INSERT INTO itemTBL
+VALUES (0001, 1, '따끈따끈 군고구마 1박스', 100, 15000, TO_DATE('2022/10/15','RRRR/MM/DD HH:MI:SS'));
+INSERT INTO itemTBL
+VALUES (0002, 2, '온열 손난로', 10, 20000, TO_DATE('2022/10/20 10:05:00','RRRR/MM/DD HH:MI:SS'));
+INSERT INTO itemTBL
+VALUES (0003, 3, '캠핑은 먹는 재미지, 이베리코 삼겹살', 20, 30000, TO_DATE('2022/11/10 09:55:44','RRRR/MM/DD HH:MI:SS'));
+
 -- 3. 테이블 내의 데이터 조회 : SELECT
 SELECT * FROM userTBL; -- 한줄로 쓰는건 잠깐,..
+SELECT * FROM itemTBL; -- 한줄로 쓰는건 잠깐,..
 
 -- 4. 테이블 내의 데이터중 조건에 맞는 데이터만 조회 : SELECT
 SELECT * 
 FROM userTBL 
 WHERE age = 20;  -- = : 같다 (equal, 비교 연산자)
 
+SELECT * 
+FROM itemTBL 
+WHERE buyer = 2;
 
 -- 5. 테이블의 구조(=정의, 명세)를 조회 : desc, describe (=묘사하다, 서술하다)
+DESC userTBL;
+/* userTBL 구조
+이름       널? 유형           
+-------- -- ------------ 
+ID          NUMBER       
+NAME        VARCHAR2(20) 
+AGE         NUMBER       
+PHONE       CHAR(13)     
+ADDR        VARCHAR2(50) 
+EMAIL       VARCHAR2(30) 
+REG_DATE    DATE 
+*/
+
 DESC itemTBL;
 /* itemTBL의 명세(=구조)
 이름        널? 유형           
@@ -111,42 +160,14 @@ COMMIT;
 
 
 
-CREATE TABLE itemTBL (
-    id NUMBER(4),--상품 아이디 : 0001, 0002.....
-    buyer number,-- 구매자 아이디 : 홀길동
-    title varchar2(100), -- 상품명 : 100바이트
-    qty number, -- 상품 갯수
-    price VARCHAR2(50), -- 상품 가격
-    sell_date date -- 판매일
-   );
-
--- number : 숫자 타입/소숫점
--- char : 고정문자
--- varchar2 : 가변 문자 vs varchar : 오라클에서 다시 어떤 목적으로 재사용하기위해 가급적 사용하지 않도록!!
--- ncharm, nvarchar : national (다국어, 영어가 아닌 한국어/일본어/중국어/아랍어,.. 각 나라별 언어 설정)
--- date : (시간)날짜  vs timezone, timestamp : 밀리세컨드까지 저장 (ex.출입기록)
--- lob(large object), clob, blob : 이미지, 영상등의 용량이 큰 바이너리 파일들을 관리하는 타입
--- bfile : 테라바이트 까지..
 
 
--- * dba, modeler가 주로 결정하고 진행, developer는 그렇게 만들어진 데이터베이스에 데이터 입출력, 조작을 담당
 
--- 아이템 데이터 등록
--- 순서와 데이터의 갯수를 테이블 정의 그대로 지켜서 입력!
-select sysdate
-from dual;
 
-INSERT INTO itemTBL
-values (0001, 1,따끈따끈 군고구마 1박스', 100, 15000, tomdate('2022/10/15','rrrr/mm/dd hh:mi:ss'));
 
-INSERT INTO itemTBL
-values (0002, 2,맛있는', 100, 15000, tomdate('2022/10/15','rrrr/mm/dd hh:mi:ss'));
 
-INSERT INTO itemTBL
-values (0001, 1,따끈따끈 군고구마 1박스', 100, 15000, tomdate('2022/10/15','rrrr/mm/dd hh:mi:ss'));
 
-INSERT INTO itemTBL
-values (0001, 1,따끈따끈 군고구마 1박스', 100, 15000, tomdate('2022/10/15','rrrr/mm/dd hh:mi:ss'));
 
-insert into itemTBL
+
+
 

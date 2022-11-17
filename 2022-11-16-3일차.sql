@@ -52,7 +52,55 @@ FROM    employees
 WHERE   salary*12 = 120000; -- salary는 월급여 <---> 12000은 연봉(=한 해동안 받은 급여)
 
 
+2.3.2 연결 연산자 : ||
+-- ex. 이름과 성을 연결해서 이름/성명 이라는 컬럼으로 조회할때
+SELECT employee_id, last_name, salary * 12 "Annual Salary" -- 별칭
+FROM employees;
 
+SELECT employee_id, first_name ||' '||last_name full_name -- 연결 연산자 vs CONCAT() 함수 : 뒤에 나옵니다.
+FROM employees;
+
+[예제2-6] 사번이 101번인 사원의 성명을 조회하시오
+-- 여기서 성명은 이름+성의 조합, 흔히 FullName 이라고 함.
+
+SELECT  'oracle' company, employee_id 사번, first_name ||' '|| last_name 성명, department_id 부서, manager_id 매니저번호
+FROM    employees
+WHERE   employee_id = 101;
+
+-- 별칭(=Alias)은 컬럼의 별명 ==> AS는 생략가능, Option!
+-- 1) 공백을 두고 사용한다. ex> 컬럼명 별칭Alias명
+-- 2) 키워드로는 AS 또는 as를 사용한다. ex> 컬럼명 AS 별칭   또는  컬럼명 as 별칭
+-- 3) 별칭에 공백이 있으면 큰 따옴표(")로 묶어서 사용한다.   ex>salary * 12 [AS] "Annual Salary"
+
+
+[예제 2-8] 사번이 101인 사원의 정보중 사번, 성명, 연봉, 부서코드를 조회하시오
+SELECT  'hanul' company, employee_id, first_name ||' '||last_name , salary * 12 AS "Annual Salary", department_id
+FROM    employees
+WHERE   employee_id = 101;
+
+2.3.3 비교 연산자 (=, >, >=, <, <=)
+-- 값을 비교 : 문자, 숫자 비교
+
+[예제2-9] 급여가 3000 이하인 사원의 정보중 사번, 성, 급여, 부서코드를 조회하시오
+SELECT employee_id emp_id, last_name, salary, department_id dept_id
+FROM    employees
+WHERE   salary <= 3000;
+
+-- 10번 ~ 270번 : 총 27개의 부서를 갖는 회사
+-- 20번 부서 : Marketing (마케팅 부서)
+-- 30번 부서 : Purchasing (구매 부서)
+-- 50번 부서 : Shipping (배송 부서)
+-- 80번 부서 : Sales (판매 부서)
+-- ※ 부서코드는 10씩 증가하면서 다른 부서코드를 식별
+SELECT *
+FROM    departments
+WHERE   department_id = :num; --바인드 변수, PL/SQL 파트에서!!
+
+[예제2-10] 부서코드가 80번 초과인 사원의 정보를 조회하시오
+-- 부서코드가 80번을 초과하는 부서에 소속된 사원의 정보
+SELECT employee_id emp_id, last_name, salary, department_id dept_id
+FROM    employees
+WHERE   department_id > 80;
 
 
 
