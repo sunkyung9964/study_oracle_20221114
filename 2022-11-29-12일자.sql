@@ -3,11 +3,15 @@
 -- 1) 서브쿼리는 괄호로 묶어서 사용
 -- 2) 메인쿼리 vs 서브쿼리 : ()로 묶인 부분
 
+-- 연관성의 유,무에 따른 구분
+-- 결과행의 갯수(단일 vs 다중 행 또는 컬럼)에 따른 구분
 
 -- 6.1 단일 행 (단일 컬럼) 서브쿼리 : 서브쿼리 실행 결과가 하나의 결과 행을 반환하는 서브쿼리
 -- 6.2 다중 행 (단일 컬럼) 서브쿼리 :         "          여러개의 결과 행을      "
 -- 6.3 (단일 / 다중 행)다중 컬럼 서브쿼리 :        "        둘 이상의 컬럼을     "
 -- 6.4 상호 연관 서브쿼리 : 메인쿼리의 컬럼이 서브쿼리의 조건으로 사용되는 서브쿼리
+
+-- 사용 위치에 따른 구분
 -- 6.5 스칼라 서브쿼리 : SELECT 절에 사용되는 서브쿼리 (=컬럼)
 -- 6.6 인라인 뷰 서브쿼리 : FROM 절에 사용되는 서브쿼리
 
@@ -428,6 +432,8 @@ SELECT *
 FROM    month_salary;
 --ROLLBACK;
 -- V. 다중컬럼 서브쿼리로 EMP_CNT(사원수), SUM_SALARY(급여합), AVG_SALARY(급여평균)을 NULL인 값들을 갱신
+
+TRUNCATE TABLE month_salary;
 UPDATE month_salary m
 SET EMP_CNT=( SELECT    COUNT(*)
               FROM      employees e
@@ -437,7 +443,7 @@ SET EMP_CNT=( SELECT    COUNT(*)
                  FROM      employees e
                  WHERE     e.department_id = m.dept_id
                  GROUP BY  e.department_id ),
-    AVG_SALARY=( SELECT    ROUND(AVG(salary))
+    AVG_SALARY=( SELECT    AVG(salary)
                  FROM      employees e
                  WHERE     e.department_id = m.dept_id
                  GROUP BY  e.department_id );
@@ -451,7 +457,22 @@ UPDATE employees
 SET salary = 2009; -- 조건절을 생략 ==> 모든 레코드의 salary를 (체크 제약조건) 2008으로 업데이트 하는 결과
 
 SELECT *
-FROM EMPLOYEES;
+FROM month_salary;
+
+INSERT INTO month_salary
+VALUES (SYSDATE, 10, 1, 10000, 123.5);
+INSERT INTO month_salary
+VALUES (SYSDATE, 20, 2, 15000, 120.1);
+INSERT INTO month_salary
+VALUES (SYSDATE, 30, 5, 50000, 113.5);
+INSERT INTO month_salary
+VALUES (SYSDATE, 40, 10, 30000, 122.7);
+INSERT INTO month_salary
+VALUES (SYSDATE, 50, 2, 20000, 121.3);
+
+SELECT ROWNUM, emp_count, sum_salary, 
+        AVERAGE_RANK() OVER (DIMENSION LEVEL ORDER BY avg_salary) avg_sal_rank
+FROM    month_salary;        
 
 --ROLLBACK;
 
@@ -533,4 +554,282 @@ WHERE   EXISTS ( SELECT SYSDATE
 ORA-00920: 관계 연산자가 부적합합니다
 00920. 00000 -  "invalid relational operator"
 */
+
+-- ========================================================
+-- 일반적인 서브쿼리(WHERE) vs SELECT절, FROM절에 쓰는 서브쿼리
+-- ========================================================
+--SELECT  컬럼1, 컬럼2,...      : 스칼라 서브쿼리 위치
+--FROM    테이블1, 테이블2,...   : 인라인 뷰 서브쿼리 위치
+--WHERE   조건들                : 일반적인 서브쿼리 위치
+
+
+-- 6.5 스칼라 서브쿼리
+-- SELECT 절에 사용하는 서브쿼리 형태
+-- 코드성 테이블에서 코드명을 조회하거나, 그룹 함수의 결과 값을 조회할때 사용한다.
+-- ST_CLERK                        ,  AVG(salary)
+
+[예제6-22] 사원의 이름, 급여, 부서, 부서명 정보를 조회하시오
+-- 스칼라서브쿼리로 조회
+SELECT  e.first_name, e.salary, e.department_id,
+        ( SELECT department_name
+          FROM   departments d
+          WHERE  d.department_id = e.department_id ) dept_name
+FROM    employees e
+ORDER BY   e.department_id;
+
+DESC employees;
+
+SELECT first_name, salary, department_id,
+        (   SELECT ROUND(AVG(salary))
+            FROM    employees   ) avg_sal
+FROM    employees
+ORDER BY department_id;
+
+          
+
+-- 일반 쿼리 조회
+-- employees ~ departments 테이블 관계 : JOIN 연산
+SELECT  e.first_name, e.salary, e.department_id,
+        d.department_name
+FROM    employees e, departments d
+WHERE   e.department_id = d.department_id;
+
+
+SELECT *
+FROM    month_salary;
+
+SELECT dept_id, sum_salary, avg_salary
+FROM    month_salary;
+
+[연습문제6-3]
+1. 각 부서에 대해 부서코드, 부서명, 부서가 위치한 도시이름을 조회하는 쿼리문을 스칼라 서브쿼리와 일반 쿼리로 조회하시오
+-- 스칼라 서브쿼리
+SELECT  d.department_id, d.department_name,
+        (   SELECT  city
+            FROM    locations l
+            WHERE   l.location_id = d.location_id   ) city_name
+FROM    departments d
+ORDER BY    1;
+
+
+-- 일반쿼리 : JOIN 연산 (오라클 조인)
+SELECT  d.department_id, d.department_name,
+        l.city
+FROM    departments d, locations l
+WHERE   d.location_id = l.location_id
+ORDER BY 1;
+
+-- 일반쿼리 : JOIN 연산 (ANSI 조인)
+SELECT  d.department_id, d.department_name,
+        l.city
+FROM    departments d INNER JOIN locations l
+ON   d.location_id = l.location_id
+ORDER BY 1;
+
+--(ANSI 조인 - 공통 컬럼)
+SELECT  d.department_id, d.department_name,
+        l.city
+FROM    departments d INNER JOIN locations l
+USING   (location_id)
+ORDER BY 1;
+
+
+-- 6.6 인라인 뷰 (객체) <------------> 서브쿼리의 (작성 위치에 따른) 구분
+-- 메인 쿼리에 독립적이고 WHERE 절에서 JOIN을 통해 관계를 맺는다.
+-- 뷰(view)                vs      테이블(table)
+-- 임시성 테이블                    영구적인 테이블
+-- 쿼리실행 생성~종료하면 사라짐       계속 살아있음
+-- (메모리)                         저장장치(물리적)
+
+-- ex> 오라클 설치시 미리 만들어준 EMP_DETAILS_VIEW를 조회 (=a.k.a 테이블)
+-- 모든 테이블의 데이터를 개발자에게 주지 않기 위한것(?)
+-- 급여관리 앱 개발자 ---> 사원들의 정보, 급여, 계좌정보    + @ (가족, 재산,..부서)
+DESC    emp_details_view;
+SELECT * FROM emp_details_view;
+
+
+-- ==========================================================================
+-- 인라인 뷰 서브쿼리는 서브쿼리다! (뷰 라는 객체로 구분하기 보단 , 서브쿼리로 구분!)
+-- ==========================================================================
+[예제 6-24] 급여가 회사 평균급여 이상이고, 최대급여 이하인 사원의 사번, 이름, 급여, 회사평균급여, 회사최대급여를 조회하시오
+-- 일반쿼리로
+-- 1. 평균급여
+SELECT ROUND(AVG(salary)) avg_sal
+FROM    employees; --6362
+
+-- 2. 최대급여
+SELECT MAX(salary) max_sal
+FROM    employees; --24000
+
+-- 1,2번 합쳐서
+SELECT  employee_id, last_name, salary --, avg_sal, max_sal --은 employees 테이블에 없어서 조회 불가능!        
+FROM    employees
+WHERE   salary >= 6462
+AND     salary <= 24000;
+-- 회사평균급여, 회사최대급여 컬럼이 존재하지 않음 (employees와 그외 어떠한 테이블에도...)
+-- 인라인 뷰 서브쿼리로, 마치 그러한 테이블이 존재하듯이 (집계성 테이블, month_salary 처럼) 데이터를 조회
+
+
+-- 인라인 뷰 서브쿼리로 해결해보자 (스칼라 서브쿼리로 가능하지만, 주제는 인라인 뷰 서브쿼리이기 때문에~)
+SELECT  e.employee_id, e.last_name, e.salary,
+        k.avg_sal, k.max_sal
+FROM    employees e, 
+        ( SELECT ROUND(AVG(salary)) avg_sal, MAX(salary) max_sal
+          FROM  employees ) k
+WHERE   salary BETWEEN k.avg_sal AND k.max_sal;
+
+[예제6-25] 사원테이블의 데이터를 기준으로 월별 입사 현황을 조회했을때 아래와 같은 형태로 나온다고 하면
+-- 실제로는 월별 입사 현황 테이블이 없음 ==> 인라인 뷰로 처리하는 과정
+
+-- 데이터의 사원수는 월별 입사자의 합계
+
+-- 오라클 설정 확인
+--SELECT *
+--FROM    v$nls_parameters; -- RR/MM/DD, KOREAN --> 11(mm, MM) vs 11월(MONTH, MON)
+--
+--SELECT TO_CHAR(hire_date, 'MONTH') month
+--FROM    employees;
+
+
+SELECT  DECODE(TO_CHAR(hire_date, 'mm'), '01', COUNT(*), 0) "1월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '02', COUNT(*), 0) "2월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '03', COUNT(*), 0) "3월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '04', COUNT(*), 0) "4월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '05', COUNT(*), 0) "5월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '06', COUNT(*), 0) "6월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '07', COUNT(*), 0) "7월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '08', COUNT(*), 0) "8월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '09', COUNT(*), 0) "9월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '10', COUNT(*), 0) "10월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '11', COUNT(*), 0) "11월",
+        DECODE(TO_CHAR(hire_date, 'mm'), '12', COUNT(*), 0) "12월"
+FROM    employees
+GROUP BY TO_CHAR(hire_date, 'mm')
+ORDER BY TO_CHAR(hire_date, 'mm');
+
+-- 결과행은 하나
+-- 컬럼수는 12개
+-- ※ 집계함수를 사용해서 처리
+
+[예제6-26]
+SELECT  SUM(m1) "1월", SUM(m2) "2월", SUM(m3) "3월", SUM(m4) "4월", SUM(m5) "5월", SUM(m6) "6월",
+        SUM(m7) "7월", SUM(m8) "8월", SUM(m9) "9월", SUM(m10) "10월", SUM(m11) "11월", SUM(m12) "12월"
+FROM    (
+            SELECT  DECODE(TO_CHAR(hire_date, 'mm'), '01', COUNT(*), 0) m1,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '02', COUNT(*), 0) m2,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '03', COUNT(*), 0) m3,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '04', COUNT(*), 0) m4,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '05', COUNT(*), 0) m5,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '06', COUNT(*), 0) m6,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '07', COUNT(*), 0) m7,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '08', COUNT(*), 0) m8,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '09', COUNT(*), 0) m9,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '10', COUNT(*), 0) m10,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '11', COUNT(*), 0) m11,
+                    DECODE(TO_CHAR(hire_date, 'mm'), '12', COUNT(*), 0) m12
+            FROM    employees
+            GROUP BY TO_CHAR(hire_date, 'mm')
+        ) -- 인라인 뷰 : 임시성 테이블
+
+
+-- ===========================================================
+-- 만약, 월별 사원수를 집계하는 테이블을 만든다며? month_salary 처럼
+-- ==========================================================
+CREATE TABLE month_emp_count (
+    magam_date DATE DEFAULT LAST_DAY(SYSDATE),
+    m1  NUMBER DEFAULT 0,
+    m2  NUMBER DEFAULT 0,
+    m3  NUMBER DEFAULT 0,
+    m4  NUMBER DEFAULT 0,
+    m5  NUMBER DEFAULT 0,
+    m6  NUMBER DEFAULT 0,    
+    m7  NUMBER DEFAULT 0,    
+    m8  NUMBER DEFAULT 0,
+    m9  NUMBER DEFAULT 0,
+    m10  NUMBER DEFAULT 0,
+    m11  NUMBER DEFAULT 0,
+    m12  NUMBER DEFAULT 0,
+    total NUMBER,
+    avg NUMBER
+);
+
+-- =================================================
+-- ROWNUM은 서브쿼리가 아닌 분석 함수의 종류
+-- =================================================
+
+-- ROWNUM   vs  ROW_NUMBER()
+-- 의사컬럼   vs  의사컬럼 함수
+-- 표현식에 따른 순서를 1,2,3,4,5...연속된 숫자로 표현하는 함수
+-- 키보드 F1 눌러서 도움말에서 검색 해보세요!
+-- 쿼리 실행 결과에 나온 각 행의 순서값을 나타낸다.
+[예제6-27] 사번, 이름을 10건 조회하시오
+SELECT ROWNUM NUM, employee_id, first_name
+FROM    employees
+WHERE   ROWNUM BETWEEN 11 AND 20
+ORDER BY 2;
+
+-- 중간 순위(범위)를 필터링 하지 못함
+
+-- 순위(ranking)를 나타내는 함수
+-- RANK()       vs        DENSE_RANK()        vs       AVERAGE_RANK()
+-- 1,2,3,3,5,..          1,2,3,3,4,5,6,..              1,2,3.5,3.5,....
+-- ex> 급여 순위 1~10등까지, 상위 5명, 하위 10명...
+
+SELECT  employee_id, first_name, 
+        RANK() OVER (ORDER BY salary DESC) sal_rank, -- 1,2,3,3,5... [동순위 다음 순위는 +1(건너 뛰어 표기)]
+        DENSE_RANK() OVER (ORDER BY salary DESC) sal_dense_rank, -- 1,2,3,3,4...[동순위 다음 순위를 표시]
+--        AVERAGE_RANK() OVER (ORDER BY salary DESC) sal_avg_rank, -- 1,2,3.5,3.5,4...[동순위는 소숫점으로 표시]
+        ROW_NUMBER() OVER (ORDER BY salary DESC) sal_num1 -- 1,2,3,3,4...[순서대로 연속적인 번호로 표시, ROWNUM과 같음]
+FROM    employees;
+
+
+SELECT department_id, ROUND(AVG(salary)) avg_sal,
+        RANK() OVER (ORDER BY AVG(salary) DESC) avg_sal_rank
+FROM    employees
+GROUP BY department_id
+ORDER BY 3;
+
+
+SELECT department_id, 
+        AVERAGE_RANK() OVER (DIMENSION LEVEL ORDER BY salary DESC) avg_sal_rank
+FROM    employees
+GROUP BY department_id;
+
+
+
+
+
+[예제 6-28] 분석함수를 사용해서 급여가 높은 상위 10명 사원의 사번, 이름, 급여정보를 조회하려면?
+
+SELECT  employee_id, last_name, salary, 
+        DENSE_RANK() OVER (ORDER BY salary DESC) sal_rank          
+FROM    employees
+WHERE   ROWNUM <= 10;
+
+
+-- ==================================================
+-- AVERAGE_RANK() 는 미확인
+--  1) 파라미터 값
+--  2) 데이터가 NUMBER인데 소숫점 이하 자릿수 유무
+-- ==================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
