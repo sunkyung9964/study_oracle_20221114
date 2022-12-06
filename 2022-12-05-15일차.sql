@@ -395,6 +395,139 @@ DELETE FROM TMP; -- ROLLBACK, COMMIT을 수동
 COMMIT;
 
 
+[예제9-4] 부서테이블의 데이터를 복사하여 dept1 테이블을 생성하시오
+-- CTAS : CREATE TABLE 테이블명 AS SELECT 이하~  /  테이블 생성
+-- ITAS : INSERT INTO 테이블명 SELECT 이하~    /   데이터 입력
+CREATE TABLE dept1 AS
+SELECT  *
+FROM    departments;
+
+DESC dept1;
+
+SELECT *
+FROM    dept1;
+
+[예제9-5] 사원테이블의 사번, 이름, 입사일 컬럼의 데이터를 복사해서 emp20 테이블 생성하시오
+--DROP TABLE EMP20;
+CREATE TABLE EMP20 AS
+SELECT employee_id, first_name, hire_date
+FROM    EMPLOYEES;
+
+DESC emp20;
+
+SELECT *
+FROM    emp20;
+
+
+[예제9-6] 부서테이블을 데이터 없이 복사하여(=구조만 복사) dept2 테이블을 생성하시오
+-- WHERE 조건절을 거짓 조건으로 만들어, 복사되는 데이터가 없도록 테이블을 생성하는 방법
+CREATE TABLE dept2 AS
+SELECT  *
+FROM    departments
+WHERE   1 = 2;
+
+DESC dept2; -- NN 복사 ok, 
+
+SELECT *
+FROM    dept2;
+
+
+9.3 ALTER TABLE / 테이블의 구조 변경 명령
+-- 데이터가 없다면? 테이블을 잘못 생성했을때, 삭제하고 다시 생성
+-- 데이터가 있을경우? 테이블의 구조, 제약조건, BYTE 등을 변경
+--                 새로운 컬럼 추가시, 당연히 데이터는 NULL 세팅
+
+-- ※ 테이블의 구조를 변경하는 명령(컬럼 추가, 컬럼 삭제, 컬럼 변경-이름,크기)
+
+
+-- 9.3.1 컬럼 추가
+-- 테이블의 컬럼을 추가하는 형식
+-- ALTER TABLE 테이블명
+-- ADD (컬럼명1 데이터타입1, 컬럼명2 데이터타입2, ....)
+
+[예제9-7] emp20 테이블에 숫자타입 급여 컬럼, 문자타입 업무코드 컬럼을 추가하시오
+
+/*
+이름          널?       유형           
+----------- -------- ------------ 
+EMPLOYEE_ID          NUMBER(6)    
+FIRST_NAME           VARCHAR2(20) 
+HIRE_DATE   NOT NULL DATE
+------ 추가할 컬럼 -------------------
+SALARY               NUMBER(9,2)
+JOB_ID               CHAR(6) -- SA_MAN  vs [지점]_매니저
+*/
+
+SELECT *
+FROM    jobs;
+
+ALTER TABLE emp20
+ADD (salary NUMBER(10, 2), job_id VARCHAR2(5));
+-- NUMBER : 숫자형    vs    NUMBER(전체자릿수, 소수부자릿수) : 실수형 [정수부 : 전체-소수부 자릿수]
+desc emp20;
+
+ALTER TABLE emp20
+ADD (gender CHAR(1) NOT NULL); -- NOT NULL 제약조건 추가 : 이미 데이터가 있는경우는 아래와 같은 오류 발생
+-- ORA-01758: 테이블은 필수 열을 추가하기 위해 (NOT NULL) 비어 있어야 합니다.
+-- 01758. 00000 -  "table must be empty to add mandatory (NOT NULL) column"
+
+-- 해결 > 기존 테이블의 데이터를 비우고, ALTER TABLE ~
+TRUNCATE TABLE emp20;
+
+
+-- 9.3.2 컬럼의 변경
+-- ALTER TABLE 테이블명
+-- MODIFY (컬럼명1 데이터타입1, 컬럼명2 데이터타입1, ...)
+
+-- 테이블의 행이 없거나 컬럼이 NULL 값만 포함하고 있어야 데이터 타입을 변경할 수 있다.
+-- 컬럼에 저장되어 있는 데이터의 크기 이상까지 데이터의 크기를 줄일 수 있다.
+-- └ 저장된 데이터 크기보다 더 적은 크기로 변경하려면? 오류 발생~
+
+[예제9-8] emp20 테이블의 급여 컬럼과 업무코드 컬럼의 데이터 사이즈를 변경한다.
+-- 늘려보거나 줄여보면서 확인
+desc emp20;
+select * from emp20 order by 1;
+/*
+SALARY               NUMBER(10,2) 
+JOB_ID               VARCHAR2(5)
+*/
+ALTER TABLE emp20
+MODIFY (salary NUMBER(20, 2), job_id VARCHAR2(6)); -- 현재 salary, job_id가 null 이므로 자유롭게~
+
+UPDATE emp20
+SET salary=24000,
+    job_id='AD_PRES'
+WHERE   employee_id=100;    
+/*
+ORA-01441: 일부 값이 너무 커서 열 길이를 줄일 수 없음
+01441. 00000 -  "cannot decrease column length because some value is too big"
+사용자 계정 그룹인 USERS는 저장공간을 UNLIMIT 상태 --> EM (https://localhost:5500/em)
+*/
+
+
+-- 9.3.3 컬럼의 삭제
+-- 테이블의 컬럼을 삭제하는 형식
+-- ALTER TABLE 테이블명
+-- DROP COLUMN 컬럼명;
+
+[예제9-9] emp20 테이블의 업무코드 컬럼을 삭제하시오
+desc emp20;
+ALTER TABLE emp20
+DROP COLUMN job_id;
+SELECT * FROM   emp20;
+
+ALTER TABLE emp20
+ADD (salary NUMBER(8, 20), job_id VARCHAR2(7));
+
+-- =====================================================================
+-- DML : COMMIT, ROLLBACK [개발자가]
+-- DDL : AUTO COMMIT [자동 커밋]   /   CREATE, ALTER, DROP , TRUNCATE
+-- =====================================================================
+
+
+
+
+
 
 
 
