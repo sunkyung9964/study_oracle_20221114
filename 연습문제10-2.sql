@@ -133,13 +133,122 @@ FROM    dual;
 
 -- 7. 역할이 제다이에 해당하는 배역들의 배역이름, 그의 마스터 이름을 조회하는 쿼리를 작성하시오
 -- 셀프조인 / 아우터 처리 : 오라클JOIN(+) vs ANSI JOIN : [LEFT|RIGHT|FULL] OUTER JOIN
--- NULL 처리 : NVL, NVL2, COALESCE
+-- NULL 처리 : NVL(expr1, expr2), NVL2(expr1,expr2,expr3), COALESCE(null,expr1,expr2,...)
 -- 오라클 IF ~ ELSE IF : DECODE, CASE WHEN~
-SELECT  ch.character_name,
-        ca.character_name masters -- 요다의 스승은 없음, null이 나오는데 --> 제다이 중 제다이 표시
-FROM    characters ch, characters ca
-WHERE   ch.master_id = ca.character_id--셀프 조인식
-AND     ch.role_id = 1001; -- 알면, 모르면 서브쿼리
+-- 요다의 스승은 없음, null이 나오는데 --> 제다이 중 제다이 표시
+SELECT *
+FROM    characters;
+
+select *
+from roles;
+
+SELECT  c.character_name, NVL(d.character_name, '제다이 중의 제다이') masters 
+FROM    characters c, characters d, roles r
+WHERE   c.master_id = d.character_id(+)
+AND     c.role_id = r.role_id
+AND     r.role_name = '제다이'
+ORDER BY 1 ;
 
 -- 연습문제 10-1, 10-2 트랜잭션 처리!
 COMMIT;
+
+-- 8. 역할이 제다이에 해당하는 배역들의 배역이름, 이메일, 마스터의 이메일을 조회하시오
+-- P.92 표를 참조
+SELECT  c.character_name, c.email JEDAI_EMAIL, m.email MASTER_EMAIL
+--        NVL2(c.email, c.email, m.email) MASTER_EMAIL
+FROM    characters c, characters m, roles r
+WHERE   c.master_id = m.character_id(+)
+AND     c.role_id = r.role_id
+AND     r.role_name = '제다이'
+ORDER BY 1;
+
+
+-- 9. 스타워즈 시리즈별 출연 배우 수,
+-- 에피소드 이름, 출연 배우 수, 개봉년도 순으로 조회하는 쿼리 작성
+--      [ select ]           [ order by ]
+-- star_wars : 영화정보 / 에피소드 아이디, 영화제목, 개봉년도
+-- casting : 캐스팅정보 / 에피소드 아이디, 캐릭터 아이디, 실제 배우이름
+
+SELECT  s.episode_name, COUNT(*) actor_count
+FROM    star_wars s, casting c
+WHERE   s.episode_id = c.episode_id
+GROUP BY s.episode_name, s.open_year
+--HAVING
+--ORDER BY 1;
+
+-- =======================================================================
+--  casting 데이터 문제 : 각 배역과 실제 배우들이 모두 1회 출연한 것으로 입력된 데이터러
+--  그룹함수 사용시 순위를 조회하는 경우 여러 시리즈에 중복해서 출연한 배우들에 대한 구분이
+--  제대로 되지 않는 상황임을 참고하세요!!
+-- =======================================================================
+
+-- 10.전체 시리즈에서 각 배우별 배역이름, 실제이름, 출연 횟수를 조회
+-- 출연횟수가 많은 배역이름 , 실제 이름 순으로 조회하시오
+-- characters : 배역이름
+-- casting : 실제이름
+-- star_wars : 에피소드명, 개봉년도 (x)
+SELECT  ch.character_name 배역이름, ca.real_name 실제이름, count(*)
+FROM    characters ch, casting ca
+WHERE   ch.character_id = ca.character_id
+GROUP BY ch.character_name, ca.real_name;
+--HAVING
+--ORDER BY
+
+
+
+--11. 10번을 참고하여 출연 횟수가 많은 상위 3명의 배역명, 실명, 출연 횟수를 조회
+-- ROWNUM : 쿼리 실행 순서대로~ (상위, 하위) : 일종의 함수 ==> 의사 컬럼    vs  ROW_NUMBER()
+-- RANK() OVER(ORDER BY 절), DENSE_RANK() OVER(ORER BY절)
+-- 1,2,2,4,5,6...           vs   1,2,2,3,4,6...
+-- 동순위 다음 순위 건너뜀     vs   동순위 다음 순위도 표시
+-- 그룹함수의 조건 : HAVING에 표시
+
+SELECT  ch.character_name 배역이름, ca.real_name 실제이름, count(*) 출연횟수
+FROM    characters ch, casting ca
+WHERE   ch.character_id = ca.character_id
+GROUP BY ch.character_name, ca.real_name;
+
+-- 11-1. 교재에서 사용한 방법 : ROWNUM + 인라인 뷰 서브쿼리
+--
+SELECT ROWNUM ranking, e.*
+FROM    (   SELECT  ch.character_name 배역이름, ca.real_name 실제이름, count(*) 출연횟수
+            FROM    characters ch, casting ca
+            WHERE   ch.character_id = ca.character_id
+            GROUP BY ch.character_name, ca.real_name
+            ORDER BY 1 DESC ) e -- 인라인 뷰 : 실제로는 존재하지 않는 가상의 / 임시성 테이블 (메모리에서 처리)
+WHERE   ROWNUM <= 3;
+
+-- 11-2. RANK() 또는 DENSE_RANK() 사용한 방법
+SELECT  *
+FROM    (   SELECT  DENSE_RANK() OVER(ORDER BY COUNT(*)) ranking, ch.character_name 배역이름, ca.real_name 실제이름, count(*) 출연횟수
+            FROM    characters ch, casting ca
+            WHERE   ch.character_id = ca.character_id
+            GROUP BY ch.character_name, ca.real_name    )
+WHERE   ROWNUM <= 3;  
+
+
+-- 12. 시리즈별 몇명의 배우가(=실제 배우) 출연 했는지 조회
+-- 에피소드 시리즈 번호, 에피소드 이름, 출연 배우의 수
+-- 출연 배우의 수가 많은 순으로 조회
+
+-- star_wars : 에피소드 정보
+-- casting : 실제배우 정보
+
+SELECT  s.episode_id, s.episode_name, count(*) actor_count
+FROM    star_wars s, casting c
+WHERE   s.episode_id = c.episode_id
+GROUP BY s.episode_id, s.episode_name
+--ORDER BY    actor_count DESC;
+ORDER BY 3 DESC;
+
+-- 
+COMMIT;
+
+
+
+
+
+
+
+
+
